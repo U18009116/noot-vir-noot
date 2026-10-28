@@ -14,9 +14,9 @@ h1{font-size:22px;letter-spacing:.5px;margin-bottom:4px}h1 span{color:var(--acc)
 .sub{color:var(--mute);font-size:14px;margin-bottom:24px;text-align:center}
 .card{width:100%;max-width:380px;background:var(--card);border-radius:24px;padding:28px 22px;text-align:center;box-shadow:0 10px 40px #0006}
 .num{color:var(--mute);font-size:14px;letter-spacing:2px}
-.stage{position:relative;width:200px;height:200px;margin:20px auto;overflow:hidden;border-radius:14px}
+.stage{position:relative;width:200px;height:200px;margin:20px auto;overflow:hidden;border-radius:14px;isolation:isolate}.stage::after{content:"";position:absolute;inset:0;z-index:1;background:var(--card);transition:opacity .5s}.stage.shown::after{opacity:0}
 .stage iframe,#yt{position:absolute;inset:0;width:200px;height:200px;border:0;border-radius:14px}
-.disc{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,#14101f 0 14%,var(--acc) 15% 18%,#000 19% 100%);box-shadow:0 0 0 6px #ffffff10,0 0 0 80px var(--card);transition:opacity .5s}
+.disc{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,#14101f 0 14%,var(--acc) 15% 18%,#000 19% 100%);box-shadow:0 0 0 6px #ffffff10;z-index:2;transition:opacity .5s}
 .disc::after{content:"";position:absolute;inset:8px;border-radius:50%;background:repeating-radial-gradient(circle,#ffffff08 0 2px,transparent 2px 5px)}
 .stage.shown .disc{opacity:0;pointer-events:none}
 .spin{animation:spin 2.4s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
