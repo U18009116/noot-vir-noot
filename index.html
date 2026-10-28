@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Noot vir Noot</title>
-<meta property="og:title" content="Noot vir Noot - scan a card, guess the year">
-<meta property="og:description" content="100-song music timeline game. Scan a card and the song plays.">
+<meta property="og:title" content="Noot vir Noot - music and movie timeline game">
+<meta property="og:description" content="Scan a card, hear the song or watch the trailer, guess the year.">
 <style>
-:root{--bg:#14101f;--card:#221a35;--ink:#fff;--mute:#b9b0cc;--acc:#ff3d7f;--acc2:#ffb800}
+:root{--bg:#14101f;--card:#221a35;--ink:#fff;--mute:#b9b0cc;--acc:#ff3d7f;--acc2:#ffb800;--mov:#3ab0ff}
 *{box-sizing:border-box;margin:0;padding:0}
 [hidden]{display:none!important}
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px 40px}
@@ -15,11 +15,22 @@ h1{font-size:22px;letter-spacing:.5px;margin-bottom:4px}h1 span{color:var(--acc)
 .sub{color:var(--mute);font-size:14px;margin-bottom:24px;text-align:center}
 .card{width:100%;max-width:380px;background:var(--card);border-radius:24px;padding:28px 22px;text-align:center;box-shadow:0 10px 40px #0006}
 .num{color:var(--mute);font-size:14px;letter-spacing:2px}
-.stage{position:relative;width:200px;height:200px;margin:20px auto;overflow:hidden;border-radius:14px;isolation:isolate}.stage::after{content:"";position:absolute;inset:0;z-index:1;background:var(--card);transition:opacity .5s}.stage.shown::after{opacity:0}
+.stage{position:relative;width:200px;height:200px;margin:20px auto;overflow:hidden;border-radius:14px;isolation:isolate}
+.stage::after{content:"";position:absolute;inset:0;z-index:1;background:var(--card);transition:opacity .5s}
+.stage.shown::after{opacity:0}
 .stage iframe,#yt{position:absolute;inset:0;width:200px;height:200px;border:0;border-radius:14px}
 .disc{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,#14101f 0 14%,var(--acc) 15% 18%,#000 19% 100%);box-shadow:0 0 0 6px #ffffff10;z-index:2;transition:opacity .5s}
 .disc::after{content:"";position:absolute;inset:8px;border-radius:50%;background:repeating-radial-gradient(circle,#ffffff08 0 2px,transparent 2px 5px)}
 .stage.shown .disc{opacity:0;pointer-events:none}
+.clap{display:none;position:absolute;inset:0;z-index:2;align-items:center;justify-content:center;font-size:56px;background:#0d0a16;transition:opacity .4s}
+.shield{display:none;position:absolute;inset:0;z-index:4}
+.stage.movie{width:100%;height:auto;aspect-ratio:16/9;background:#000}
+.stage.movie::after{display:none}
+.stage.movie .disc{display:none}
+.stage.movie .clap{display:flex}
+.stage.movie .shield{display:block}
+.stage.movie.live .clap{opacity:0}
+.stage.movie iframe,.stage.movie #yt{left:0;top:-70px;width:100%!important;height:calc(100% + 140px)!important;border-radius:0}
 .spin{animation:spin 2.4s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 button{font:inherit;border:0;cursor:pointer;border-radius:999px;font-weight:700}
 .play{background:var(--acc);color:#fff;font-size:20px;padding:16px 36px;width:100%}
@@ -37,6 +48,17 @@ button{font:inherit;border:0;cursor:pointer;border-radius:999px;font-weight:700}
 .home p{color:var(--mute);font-size:15px;line-height:1.5;margin-bottom:14px;text-align:left}
 .home input{width:100%;font:inherit;font-size:22px;text-align:center;padding:14px;border-radius:14px;border:0;background:#ffffff14;color:#fff;margin:6px 0 10px}
 .or{color:var(--mute);font-size:13px;margin:18px 0 4px}
+.pick{display:flex;flex-direction:column;gap:14px}
+.tile{display:flex;align-items:center;gap:16px;text-align:left;width:100%;padding:20px;border-radius:20px;background:#ffffff10;color:#fff}
+.tile .ic{font-size:40px;line-height:1}
+.tile b{display:block;font-size:20px}
+.tile small{display:block;color:var(--mute);font-weight:400;font-size:13px;margin-top:3px}
+.tile.mu{box-shadow:inset 0 0 0 2px var(--acc)}
+.tile.mv{box-shadow:inset 0 0 0 2px var(--mov)}
+.modelbl{font-size:13px;letter-spacing:2px;color:var(--mute);margin-bottom:12px}
+.link{background:none;color:var(--mute);font-weight:500;font-size:14px;margin-top:18px;text-decoration:underline}
+body.movies .play{background:var(--mov)}
+body.movies .bar i{background:var(--mov)}
 .scanner{position:fixed;inset:0;background:#000;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .scanner video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .scanner .frame{position:relative;width:min(70vw,300px);aspect-ratio:1;border:4px solid #fff;border-radius:22px;box-shadow:0 0 0 100vmax #0008}
@@ -46,18 +68,24 @@ button{font:inherit;border:0;cursor:pointer;border-radius:999px;font-weight:700}
 </head>
 <body>
 <h1>NOOT <span>VIR</span> NOOT</h1>
-<div class="sub">Listen - guess the year - build your timeline</div>
+<div class="sub" id="tag">Listen or watch - guess the year - build your timeline</div>
 <div class="card">
-  <div id="homeV" class="home">
-    <p><b>How to play:</b> tap Scan, point the camera at a card and the song starts. Listen without peeking, place it on your timeline, then tap Reveal.</p>
+  <div id="pickV" class="pick">
+    <button class="tile mu" id="pickMusic"><span class="ic">&#127925;</span><span><b>Music</b><small>Hear a song, guess the year</small></span></button>
+    <button class="tile mv" id="pickMovies"><span class="ic">&#127916;</span><span><b>Movies</b><small>Watch 30 seconds of a trailer, guess the year</small></span></button>
+  </div>
+  <div id="homeV" class="home" hidden>
+    <div class="modelbl" id="modeLbl"></div>
+    <p id="howto"></p>
     <button class="scanbtn" id="scanHome">&#128247;  Scan a card</button>
     <div class="or">or type a card number</div>
     <input id="cn" type="number" inputmode="numeric" min="1" placeholder="1 - 100">
     <button class="play" id="go">Go</button>
+    <button class="link" id="switch1">Change game</button>
   </div>
   <div id="cardV" hidden>
     <div class="num" id="num"></div>
-    <div class="stage" id="stage"><div id="yt"></div><div class="disc" id="disc"></div></div>
+    <div class="stage" id="stage"><div id="yt"></div><div class="disc" id="disc"></div><div class="clap">&#127916;</div><div class="shield"></div></div>
     <button class="play" id="pl" disabled>Loading...</button>
     <div class="row" id="seek"><button class="ghost" id="back">-10s</button><button class="ghost" id="skip">+15s</button></div>
     <div class="bar"><i id="pb"></i></div>
@@ -66,6 +94,7 @@ button{font:inherit;border:0;cursor:pointer;border-radius:999px;font-weight:700}
     <div class="ans" id="ans"><div class="y" id="ay"></div><div class="a" id="aa"></div><div class="t" id="at"></div>
       <a target="_blank" rel="noopener" id="alink">Open on YouTube</a></div>
     <button class="scanbtn" id="scanNext">&#128247;  Scan next card</button>
+    <button class="link" id="switch2">Change game</button>
   </div>
 </div>
 <div class="scanner" id="scanV" hidden>
@@ -78,10 +107,11 @@ button{font:inherit;border:0;cursor:pointer;border-radius:999px;font-weight:700}
 <script>
 const SONGS = [["Eddy Grant", "Gimme Hope Jo'anna", 1988], ["Cyndi Lauper", "Girls Just Want to Have Fun", 1983], ["Tyla", "Water", 2023], ["Yvonne Chaka Chaka", "Umqombothi", 1988], ["Sipho Hotstix Mabuse", "Burnout", 1984], ["Johnny Clegg & Savuka", "Asimbonanga", 1987], ["Bob Marley & The Wailers", "Could You Be Loved", 1980], ["Shakira ft. Freshlyground", "Waka Waka (This Time for Africa)", 2010], ["Bright Blue", "Weeping", 1987], ["The Rolling Stones", "(I Can't Get No) Satisfaction", 1965], ["Toto", "Africa", 1982], ["The Beatles", "Twist and Shout", 1963], ["Mark Ronson ft. Bruno Mars", "Uptown Funk", 2014], ["Hugh Masekela", "Grazing in the Grass", 1968], ["Survivor", "Eye of the Tiger", 1982], ["The Killers", "Mr. Brightside", 2003], ["The Police", "Every Breath You Take", 1983], ["Britney Spears", "...Baby One More Time", 1998], ["Juluka", "Scatterlings of Africa", 1982], ["Stimela", "Whispers in the Deep", 1986], ["OutKast", "Hey Ya!", 2003], ["The Beach Boys", "Good Vibrations", 1966], ["Gnarls Barkley", "Crazy", 2006], ["Oasis", "Wonderwall", 1995], ["Eagles", "Hotel California", 1976], ["Beyoncé", "Crazy in Love", 2003], ["Led Zeppelin", "Stairway to Heaven", 1971], ["Guns N' Roses", "Sweet Child O' Mine", 1987], ["Fleetwood Mac", "Dreams", 1977], ["Zahara", "Loliwe", 2011], ["The Weeknd", "Blinding Lights", 2019], ["Harry Styles", "As It Was", 2022], ["Dave Matthews Band", "Crash Into Me", 1996], ["Avicii", "Wake Me Up", 2013], ["PJ Powers & Ladysmith Black Mambazo", "World in Union", 1995], ["Uncle Waffles", "Tanzania", 2022], ["Billie Eilish", "bad guy", 2019], ["Mandoza", "Nkalakatha", 2000], ["Gotye", "Somebody That I Used to Know", 2011], ["Bon Jovi", "Livin' on a Prayer", 1986], ["Donna Summer", "Hot Stuff", 1979], ["Mango Groove", "Special Star", 1989], ["Madonna", "Like a Prayer", 1989], ["Daft Punk", "Get Lucky", 2013], ["Whitney Houston", "I Wanna Dance with Somebody", 1987], ["ABBA", "Dancing Queen", 1976], ["Ed Sheeran", "Shape of You", 2017], ["Aretha Franklin", "Respect", 1967], ["Adele", "Rolling in the Deep", 2010], ["Lucky Dube", "Prisoner", 1989], ["Backstreet Boys", "I Want It That Way", 1999], ["Taylor Swift", "Shake It Off", 2014], ["Pharrell Williams", "Happy", 2013], ["Michael Jackson", "Billie Jean", 1982], ["Seether ft. Amy Lee", "Broken", 2004], ["Coolio", "Gangsta's Paradise", 1995], ["R.E.M.", "Losing My Religion", 1991], ["Tones and I", "Dance Monkey", 2019], ["The Tokens", "The Lion Sleeps Tonight", 1961], ["Margaret Singana", "We Are Growing", 1986], ["Celine Dion", "My Heart Will Go On", 1997], ["Shakira", "Hips Don't Lie", 2006], ["Nirvana", "Smells Like Teen Spirit", 1991], ["TLC", "Waterfalls", 1995], ["Clout", "Substitute", 1978], ["Gloria Gaynor", "I Will Survive", 1978], ["Master KG ft. Nomcebo Zikode", "Jerusalema", 2019], ["The Cranberries", "Zombie", 1994], ["Bee Gees", "Stayin' Alive", 1977], ["Marvin Gaye", "I Heard It Through the Grapevine", 1968], ["TKZee", "Shibobo", 1998], ["Mafikizolo", "Khona", 2013], ["Focalistic", "Ke Star", 2020], ["Brenda Fassie", "Weekend Special", 1983], ["a-ha", "Take On Me", 1985], ["Manfred Mann's Earth Band", "Blinded by the Light", 1976], ["Miriam Makeba", "Pata Pata", 1967], ["Brenda Fassie", "Vulindlela", 1997], ["Coldplay", "Viva la Vida", 2008], ["Miley Cyrus", "Flowers", 2023], ["Brenda Fassie", "Too Late for Mama", 1989], ["Paul Simon", "You Can Call Me Al", 1986], ["Creedence Clearwater Revival", "Proud Mary", 1969], ["Rihanna", "Umbrella", 2007], ["Lady Gaga", "Poker Face", 2008], ["Stevie Wonder", "Superstition", 1972], ["The Beatles", "Hey Jude", 1968], ["Wham!", "Wake Me Up Before You Go-Go", 1984], ["Luis Fonsi ft. Daddy Yankee", "Despacito", 2017], ["Elvis Presley", "Suspicious Minds", 1969], ["Hugh Masekela", "Stimela", 1974], ["Eminem", "Lose Yourself", 2002], ["Queen", "Bohemian Rhapsody", 1975], ["Dua Lipa", "Levitating", 2020], ["Elton John", "Your Song", 1970], ["Simon & Garfunkel", "Mrs. Robinson", 1968], ["Hugh Masekela", "Bring Him Back Home", 1987], ["Amy Winehouse", "Rehab", 2006], ["Dire Straits", "Sultans of Swing", 1978], ["Spice Girls", "Wannabe", 1996]]; // [artist, title, year]
 const YT_IDS = ["ZTGOAFXUEyI","gvLMhpzYic0","xynO0CdiE6Q","pSVKj6_pUIU","E72smOrpwaI","bvw8SOETkTI","zBqW6yKz8WA","Z_slTWayFK0","1POzJujs_oU","ySppDOLmiSQ","QAo_Ycocl1E","2RicaUqd9Hg","tYvFa2ARD24","b_V3mg_7xlE","S-LO6dctBms","m2zUrruKjDQ","-SaUrDhp034","91Niv2q4gvc","Q8xvaAHSsEk","ZGj_KskxJOw","ubk1skSE9OA","oMfjgQ8ptrE","vBtvhPM2GHc","rj5wZqReXQE","BciS5krYL80","5BnF0_LksYI","iXQUu5Dti4g","oMfMUfgjiLg","swJOIjjW69U","BaAPA6XAXrw","J7p4bzqLvCw","nujn6wbr-e8","zY7RwTPeYDA","2NiyrtYegso","-BRYMlWhh7E","uPxDY86UH-8","ZD6rXLXZOEI","DE4_sr3BU3w","xOazTYPrt64","YBdyc1WDlBQ","nYMeJSehCe4","Mgm7MuqCabo","ilottRbDnGY","4D7u5KF7SP8","6xzN8Nt0Pok","YkLLcIKhJ64","xTvyyoF_LZY","9iayJ8u4Qew","4ujBQOzs6Lw","B_mH5LM3hCk","LwkrXybZ1uo","sWMk8dwljFU","dJqxQzxLbHM","Kr4EQDVETuA","bwL1dY3XPGA","-5qqrMu_AZc","Efa6BAWPm9o","Hx4nWW9z0ig","N7MYqz7KgIs","esARyZz_xnw","Siz-xBfIqpg","nOj6d-HOw2w","ljUtuoFt-8c","A_iTphwVNYs","0eatGphKBA4","nXMPx4DDVWM","XZFlvAB1MlI","lSDfCdycdvk","z2qoihbzc3E","kAPj9oP4q_w","UhI4u8k7i_U","XoQvvBYvHcg","_KJurg2P-tk","P7Y4OLjN8UY","HzdD8kbDzZA","oWqBTAk0Qk8","SBH_u-vEK30","owVxCD4eOWk","ALsvdSA9tOU","BkSSOGNeWTM","KUHjI9prvOY","OMbfT3Wppjo","lfkFDUTJI0A","xXD5tltX9Pg","oG-4Uvhm4lI","ftdZ363R9kQ","mQER0A0ej0M","R14lGgHgVJM","FXovf5dsRTw","4Zt8yLQTNqM","lXY2TgDdcQ8","4wOLVrGHiIU","BSTsnWoslP4","OsfAnsMY21M","FT3D1Cu6g10","_C2vqI9FVwg","HUe0s3f1bng","t2TKqJ2FXGM","cF3OWCYLLVQ","tscL_I2v7pU"];
+const MOVIES = [["Braveheart",1995,83,"wj0I8xVTV18",175],["12th Fail",2023,73,"KjbtuqENvVE",165],["Rear Window",1954,52,"m01YktiEZCw",159],["Memento",2000,59,"xpmSH3nx6Sw",138],["WALL·E",2008,55,"3Mi62VKDhm0",151],["The Intouchables",2011,48,"34WIbmXkewU",139],["Django Unchained",2012,50,"0fUCuvNlOCg",156],["Attack on Titan: The Last Attack",2024,88,"3xNH23QkNpk",71],["The Great Dictator",1940,70,"ynkXIrbynAM",132],["Once Upon a Time in the West",1968,54,"11sHtpvnn4I",184],["Once Upon a Time in America",1984,91,"LcpCRyNo8T8",148],["The Lion King",1994,38,"7TavVZMewpY",109],["Modern Times",1936,53,"gp--AjQOfRE",104],["Terminator 2: Judgment Day",1991,28,"lwSysg9o7wE",125],["Back to the Future",1985,29,"U71BvFM7Wpw",63],["Parasite",2019,35,"isOGD_7hNIY",137],["Seven",1995,20,"znmZoVkCjpI",137],["The Lord of the Rings: The Two Towers",2002,10,"LbfMDwc4azU",188],["The Lives of Others",2006,63,"n3_iLOp6IhM",109],["The Good, the Bad and the Ugly",1966,11,"IFNUGzCOQoI",196],["Avengers: Endgame",2019,74,"TcMBFSGVi1c",147],["The Silence of the Lambs",1991,22,"6iB21hsprAQ",119],["The Departed",2006,40,"iojhqm0JTW4",151],["The Usual Suspects",1995,49,"Q0eCiCinc4E",145],["Oldboy",2003,85,"tAaBkFChaRg",117],["The Dark Knight",2008,3,"EXeTwQWrcwY",151],["Casablanca",1942,47,"BkL9l7qovsE",130],["Joker",2019,92,"zAGVQLHvwOY",145],["Saving Private Ryan",1998,23,"PrthROm6ocY",120],["American Beauty",1999,87,"XCxzXblZyfQ",181],["The Matrix",1999,16,"vKQi3bBA1y8",140],["Das Boot",1981,82,"KhNnU4h1Q50",67],["Kill Bill: The Whole Bloody Affair",2004,34,"7kSuas6mRpk",153],["Fight Club",1999,14,"_XgQA9Ab0Gw",147],["Good Will Hunting",1997,75,"ReIJ1lbL-Q8",156],["Cinema Paradiso",1988,45,"C2-GX0Tltgw",70],["Spider-Man: Across the Spider-Verse",2023,44,"cqGjhVJWtEg",150],["Aliens",1986,71,"XuwiG2dDGYs",109],["Capernaum",2018,89,"ULUo0048xZE",132],["City Lights",1931,56,"7vl7F8S4cpQ",85],["Sunset Boulevard",1950,65,"ZQWqIA1-kvA",105],["Schindler's List",1993,7,"gG22XNhtnoY",179],["Harakiri",1962,37,"4y9ABFleT38",56],["The Hunt",2012,99,"ieLIOBkMgAQ",160],["Come and See",1985,95,"UHaSQU-4wss",114],["Spider-Man: Into the Spider-Verse",2018,62,"g4Hbz2jLxvQ",161],["The Pianist",2002,33,"BFwGqLa_oAo",86],["Star Wars: Episode V - The Empire Strikes Back",1980,15,"JNwNXF9Y6kY",127],["Your Name.",2016,80,"RuyHIkXdYf8",88],["Interstellar",2014,17,"zSWdZVtXT7E",175],["Léon: The Professional",1994,46,"rNw0D7Hh0DY",60],["The Dark Knight Rises",2012,78,"GokKUqLcvD8",131],["Grave of the Fireflies",1988,36,"4vPeTSRd580",103],["Life Is Beautiful",1997,27,"8CTjcVr9Iao",101],["GoodFellas",1990,18,"2ilzidi_J8Q",88],["Paths of Glory",1957,67,"FESvZ0HG2p4",194],["The Odyssey",2026,64,"f_bKjZeJBBI",152],["Singin' in the Rain",1952,90,"5_EVHeNEIJY",244],["American History X",1998,43,"XfQYHqsiN5g",135],["The Shawshank Redemption",1994,1,"NmzuHjWmXOc",161],["Gladiator",2000,32,"P5ieIbInFpg",95],["Princess Mononoke",1997,84,"4OiMOHRDs14",103],["Whiplash",2014,41,"Q7kZy3T6vRM",96],["Star Wars: Episode IV - A New Hope",1977,30,"XHk5kCIiGoM",122],["City of God",2002,26,"dcUOO4Itgmw",64],["Apocalypse Now",1979,57,"9l-ViOOFH-s",102],["The Prestige",2006,42,"G8ozbqgdIjY",101],["Ikiru",1952,98,"2VeLN3IDjzQ",224],["The Godfather Part II",1974,4,"9O1Iy9od7-A",258],["Spirited Away",2001,31,"ByXuk9QqQkk",147],["Star Wars: Episode VI - Return of the Jedi",1983,94,"p4vIFhk621Q",131],["The Lord of the Rings: The Return of the King",2003,5,"r5X-hFf6Bwo",207],["The Lord of the Rings: The Fellowship of the Ring",2001,8,"V75dMMIW2B4",176],["Pulp Fiction",1994,9,"tGpTpVyI_OQ",99],["Inglourious Basterds",2009,68,"KnrRy6kSFF0",106],["The Godfather",1972,2,"UaVTIH8mujA",121],["It's a Wonderful Life",1946,21,"iLR3gZrU2Xo",76],["Dr. Strangelove or: How I Learned to Stop Worrying and Love the Bomb",1964,86,"ulfeh3-X7uo",98],["Alien",1979,51,"p_w9xGk50do",125],["Toy Story",1995,77,"h9hsA-LjQtk",177],["12 Angry Men",1957,6,"TEN-2uTi2c0",147],["The Shining",1980,69,"S014oGZiSdI",88],["Forrest Gump",1994,12,"Mj9IA9tTfio",61],["One Flew Over the Cuckoo's Nest",1975,19,"OXrcDonY-B8",155],["Psycho",1960,39,"Wz719b9QUqY",102],["Incendies",2010,97,"XJ69WnwvZhE",129],["Inception",2010,13,"YoHD9XEInc0",144],["Toy Story 3",2010,93,"2BlMNH1QTeE",139],["Amadeus",1984,79,"r7kWQj9FCGY",141],["3 Idiots",2009,81,"K0eDlFX9GMc",178],["Raiders of the Lost Ark",1981,61,"0xQSIdSRlAk",94],["Requiem for a Dream",2000,96,"0nU7dC9bIDg",138],["Seven Samurai",1954,24,"GWhUEKyTU6I",106],["The Green Mile",1999,25,"Ki4haFrqSrw",140],["Coco",2017,76,"xlnPHQ3TLX8",89],["Witness for the Prosecution",1957,66,"atubVHaMemU",189],["Eternal Sunshine of the Spotless Mind",2004,100,"07-QBnEkgXU",84],["Dune: Part Two",2024,60,"Way9Dexny3w",145],["High and Low",1963,72,"prc1aXLUke0",95],["Avengers: Infinity War",2018,58,"6ZfuNTqbHE8",145]]; // [title, year, imdbRank, youtubeId, trailerSeconds]
 const $=id=>document.getElementById(id);
 const au=$('au'), pl=$('pl'), st=$('st'), disc=$('disc'), pb=$('pb'), stage=$('stage'), ans=$('ans');
 const SILENT='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-let player=null, ready=false, mode='yt', cur=0, pending=null, unlocked=false, unlocking=false, wantAuto=false, autoTimer=null;
+let player=null, ready=false, mode='yt', game='music', cur=0, pending=null, unlocked=false, unlocking=false, wantAuto=false, autoTimer=null, clipS=0, clipE=0;
 
 function jsonp(url){
   return new Promise((res,rej)=>{
@@ -113,9 +143,35 @@ async function findPreview(artist, title){
 }
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
 
-const spin=on=>disc.classList.toggle('spin',on);
+const spin=on=>{ if(game==='music') disc.classList.toggle('spin',on); };
 const setBtn=s=>pl.textContent=s;
 const PLAY='▶  Play', PAUSE='❚❚  Pause', AGAIN='↻  Play again';
+const OKMSG=()=>game==='movies'?'30 seconds of the trailer - no peeking at the title!':'Full song - no peeking!';
+
+// ---------- game choice ----------
+function setGame(g){
+  game=g; document.body.classList.toggle('movies',g==='movies');
+  stage.classList.toggle('movie',g==='movies');
+  $('modeLbl').textContent=g==='movies'?'🎬  MOVIES - IMDb TOP 100':'🎵  MUSIC';
+  $('howto').innerHTML=g==='movies'
+    ? '<b>How to play:</b> tap Scan, point the camera at a movie card and 30 seconds from the middle of the trailer plays. Guess the year, place it on your timeline, then tap Reveal.'
+    : '<b>How to play:</b> tap Scan, point the camera at a card and the song starts. Listen without peeking, place it on your timeline, then tap Reveal.';
+}
+function showHome(g){
+  setGame(g); stopAll(); cur=0;
+  $('pickV').hidden=true; $('cardV').hidden=true; $('homeV').hidden=false;
+  try{history.replaceState(null,'','?g='+(g==='movies'?'movies':'music'));}catch(e){}
+}
+function showPick(){
+  stopAll(); cur=0;
+  $('homeV').hidden=true; $('cardV').hidden=true; $('pickV').hidden=false;
+  document.body.classList.remove('movies');
+  try{history.replaceState(null,'','?');}catch(e){}
+}
+function stopAll(){ try{player&&ready&&player.stopVideo();}catch(e){} au.pause(); clearTimeout(autoTimer); }
+$('pickMusic').onclick=()=>{unlock();showHome('music');};
+$('pickMovies').onclick=()=>{unlock();showHome('movies');};
+$('switch1').onclick=showPick; $('switch2').onclick=showPick;
 
 // ---------- YouTube player (one player for the whole session) ----------
 window.onYouTubeIframeAPIReady=()=>{
@@ -126,15 +182,16 @@ window.onYouTubeIframeAPIReady=()=>{
       onStateChange:e=>{
         if(unlocking){ if(e.data===1){player.pauseVideo();player.unMute();unlocking=false;} return; }
         if(!cur||mode!=='yt') return;
-        if(e.data===1){spin(true);setBtn(PAUSE);st.textContent='Full song - no peeking!';clearTimeout(autoTimer);}
+        if(e.data===1){spin(true);setBtn(PAUSE);st.textContent=OKMSG();clearTimeout(autoTimer);stage.classList.add('live');}
         else if(e.data===2){spin(false);setBtn(PLAY);}
         else if(e.data===0){spin(false);setBtn(AGAIN);}
       },
-      onError:()=>{ if(unlocking){unlocking=false;return;} if(cur) useAudio(); }
+      onError:()=>{ if(unlocking){unlocking=false;return;} if(!cur) return;
+        if(game==='music') useAudio(); else { setBtn('Trailer unavailable'); pl.disabled=true; st.textContent='Tap Reveal and use the YouTube link'; } }
     }});
 };
 loadScript('https://www.youtube.com/iframe_api').catch(()=>{});
-setTimeout(()=>{ if(!ready && pending){const p=pending;pending=null;cur=p.n;useAudio();} },12000);
+setTimeout(()=>{ if(!ready && pending && game==='music'){const p=pending;pending=null;cur=p.n;useAudio();} },12000);
 
 // Called from a tap: lets later songs start by themselves
 function unlock(){
@@ -159,17 +216,27 @@ au.onplay=()=>{ if(mode==='audio'){spin(true);setBtn(PAUSE);} };
 au.onpause=()=>{ if(mode==='audio'){spin(false);setBtn(PLAY);} };
 au.onended=()=>{ if(mode==='audio'){spin(false);setBtn(AGAIN);} };
 
-function showCard(n, auto){
+function showCard(g, n, auto){
+  setGame(g);
   cur=n; wantAuto=auto; mode='yt';
-  try{history.replaceState(null,'','?c='+n);}catch(e){}
-  document.title='Noot vir Noot - card '+n;
-  const [artist,title,year]=SONGS[n-1], vid=YT_IDS[n-1];
-  $('homeV').hidden=true; $('cardV').hidden=false;
-  $('num').textContent='CARD #'+String(n).padStart(3,'0');
-  $('ay').textContent=year; $('aa').textContent=artist; $('at').textContent=title;
+  try{history.replaceState(null,'','?'+(g==='movies'?'m':'c')+'='+n);}catch(e){}
+  document.title='Noot vir Noot - '+(g==='movies'?'movie ':'card ')+n;
+  $('pickV').hidden=true; $('homeV').hidden=true; $('cardV').hidden=false;
+  $('num').textContent=(g==='movies'?'MOVIE #':'CARD #')+String(n).padStart(3,'0');
+  let vid;
+  if(g==='movies'){
+    const [title,year,rank,id,len]=MOVIES[n-1]; vid=id;
+    $('ay').textContent=year; $('aa').textContent=title; $('at').textContent='IMDb Top 250: #'+rank;
+    clipS=Math.max(0,Math.floor(len/2)-15); clipE=Math.min(len,clipS+30);
+    $('alink').textContent='Watch the full trailer on YouTube';
+  } else {
+    const [artist,title,year]=SONGS[n-1]; vid=YT_IDS[n-1];
+    $('ay').textContent=year; $('aa').textContent=artist; $('at').textContent=title;
+    $('alink').textContent='Open on YouTube';
+  }
   $('alink').href='https://www.youtube.com/watch?v='+vid;
-  ans.style.display='none'; $('rv').style.display=''; stage.classList.remove('shown');
-  $('seek').hidden=false; spin(false); pb.style.width='0';
+  ans.style.display='none'; $('rv').style.display=''; stage.classList.remove('shown','live');
+  $('seek').hidden=(g==='movies'); disc.classList.remove('spin'); pb.style.width='0';
   au.pause(); au.removeAttribute('src');
   pl.disabled=true; setBtn('Loading...'); st.textContent='';
   if(!ready){ pending={n,auto}; return; }
@@ -178,20 +245,22 @@ function showCard(n, auto){
 function startCard(n,auto){
   if(n!==cur) return;
   unlocking=false; try{player.unMute();}catch(e){}
-  const vid=YT_IDS[n-1];
-  pl.disabled=false; setBtn(PLAY); st.textContent='Full song - no peeking!';
+  pl.disabled=false; setBtn(PLAY); st.textContent=OKMSG();
   clearTimeout(autoTimer);
+  const opts = game==='movies' ? {videoId:MOVIES[n-1][3], startSeconds:clipS, endSeconds:clipE} : {videoId:YT_IDS[n-1]};
   if(auto){
-    player.loadVideoById(vid);
+    player.loadVideoById(opts);
     autoTimer=setTimeout(()=>{ if(mode==='yt' && player.getPlayerState()!==1){ st.textContent='Tap Play to start'; setBtn(PLAY); spin(false);} },3500);
-  } else player.cueVideoById(vid);
+  } else player.cueVideoById(opts);
 }
 
 pl.onclick=()=>{
   unlock();
   if(mode==='yt'&&player&&ready){
     const s=player.getPlayerState();
-    if(s===1) player.pauseVideo(); else { if(s===0) player.seekTo(0,true); player.playVideo(); }
+    if(s===1) player.pauseVideo();
+    else if(s===0 && game==='movies'){ player.loadVideoById({videoId:MOVIES[cur-1][3], startSeconds:clipS, endSeconds:clipE}); }
+    else { if(s===0) player.seekTo(0,true); player.playVideo(); }
   } else if(mode==='audio' && au.src){
     if(au.paused) au.play().catch(()=>st.textContent='Tap play again'); else au.pause();
   }
@@ -200,13 +269,16 @@ $('skip').onclick=()=>{if(player&&ready) player.seekTo(player.getCurrentTime()+1
 $('back').onclick=()=>{if(player&&ready) player.seekTo(Math.max(0,player.getCurrentTime()-10),true);};
 setInterval(()=>{
   if(!cur) return;
-  let c=0,d=0;
-  if(mode==='yt'&&player&&ready&&player.getCurrentTime){c=player.getCurrentTime()||0;d=player.getDuration()||0;}
-  else {c=au.currentTime||0;d=au.duration||0;}
-  pb.style.width=(d?c/d*100:0)+'%';
+  let p=0;
+  if(mode==='yt'&&player&&ready&&player.getCurrentTime){
+    const c=player.getCurrentTime()||0;
+    if(game==='movies') p=(c-clipS)/((clipE-clipS)||30);
+    else { const d=player.getDuration()||0; p=d?c/d:0; }
+  } else { p=au.duration?au.currentTime/au.duration:0; }
+  pb.style.width=Math.max(0,Math.min(1,p))*100+'%';
 },500);
 $('rv').onclick=()=>{ans.style.display='block';$('rv').style.display='none';stage.classList.add('shown');};
-$('go').onclick=()=>{unlock(); const v=parseInt($('cn').value,10); if(v>=1&&v<=SONGS.length) showCard(v,true);};
+$('go').onclick=()=>{unlock(); const v=parseInt($('cn').value,10); const max=game==='movies'?MOVIES.length:SONGS.length; if(v>=1&&v<=max) showCard(game,v,true);};
 $('cn').onkeydown=e=>{if(e.key==='Enter')$('go').click();};
 
 // ---------- QR scanner ----------
@@ -229,10 +301,13 @@ function closeScanner(){
   $('cam').srcObject=null; $('scanV').hidden=true;
 }
 function cardFrom(text){
-  let n=NaN;
-  try{ n=parseInt(new URL(text, location.href).searchParams.get('c'),10); }catch(e){}
-  if(isNaN(n)) n=parseInt(text,10);
-  return (n>=1&&n<=SONGS.length)?n:0;
+  try{
+    const u=new URL(text, location.href);
+    const m=parseInt(u.searchParams.get('m'),10); if(m>=1&&m<=MOVIES.length) return ['movies',m];
+    const c=parseInt(u.searchParams.get('c'),10); if(c>=1&&c<=SONGS.length) return ['music',c];
+  }catch(e){}
+  const n=parseInt(text,10); const max=game==='movies'?MOVIES.length:SONGS.length;
+  return (n>=1&&n<=max)?[game,n]:null;
 }
 async function scanLoop(){
   if(!scanning) return;
@@ -250,7 +325,7 @@ async function scanLoop(){
       }
     }catch(e){}
   }
-  if(text){ const n=cardFrom(text); if(n){ closeScanner(); showCard(n,true); return; } else $('scanMsg').textContent='That is not a Noot vir Noot card'; }
+  if(text){ const r=cardFrom(text); if(r){ closeScanner(); showCard(r[0],r[1],true); return; } else $('scanMsg').textContent='That is not a Noot vir Noot card'; }
   setTimeout(scanLoop,150);
 }
 $('scanHome').onclick=openScanner;
@@ -258,8 +333,12 @@ $('scanNext').onclick=openScanner;
 $('cancel').onclick=closeScanner;
 
 // ---------- start ----------
-const start=parseInt(new URLSearchParams(location.search).get('c')||location.hash.slice(1),10);
-if(start>=1&&start<=SONGS.length) showCard(start,true);
+const q=new URLSearchParams(location.search);
+const qm=parseInt(q.get('m'),10), qc=parseInt(q.get('c')||location.hash.slice(1),10);
+if(qm>=1&&qm<=MOVIES.length) showCard('movies',qm,true);
+else if(qc>=1&&qc<=SONGS.length) showCard('music',qc,true);
+else if(q.get('g')==='movies') showHome('movies');
+else if(q.get('g')==='music') showHome('music');
 </script>
 </body>
 </html>
